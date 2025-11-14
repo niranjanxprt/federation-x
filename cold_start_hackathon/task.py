@@ -8,6 +8,8 @@ from torch.utils.data import DataLoader
 from torchvision import models
 from tqdm import tqdm
 
+from cold_start_hackathon.losses import FocalLoss
+
 hospital_datasets = {}  # Cache loaded hospital datasets
 
 
@@ -16,7 +18,8 @@ class Net(nn.Module):
 
     def __init__(self):
         super(Net, self).__init__()
-        self.model = models.resnet18(weights=None)
+        # Use pre-trained ResNet18 for faster convergence (20-min optimization)
+        self.model = models.resnet18(weights='IMAGENET1K_V1')
         # Adapt to grayscale input
         self.model.conv1 = nn.Conv2d(
             in_channels=1,
@@ -51,7 +54,7 @@ def load_data(
     dataset_name: str,
     split_name: str,
     image_size: int = 128,
-    batch_size: int = 16,
+    batch_size: int = 96,  # Increased for 20-min jobs (was 16)
 ):
     """Load hospital X-ray data.
 
@@ -76,28 +79,84 @@ def load_data(
 
     data = hospital_datasets[cache_key]
     shuffle = (split_name == "train")  # shuffle only for training splits
-    dataloader = DataLoader(data, batch_size=batch_size, shuffle=shuffle, num_workers=4, collate_fn=collate_preprocessed)
+    dataloader = DataLoader(
+        data,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=4,
+        collate_fn=collate_preprocessed,
+        pin_memory=True,  # Faster GPU transfer
+        persistent_workers=True  # Reuse workers between epochs
+    )
     return dataloader
 
 
 def train(net, trainloader, epochs, lr, device):
+    """
+    OPTIMIZED for 20-minute jobs with latest 2025 best practices.
+
+    Key features:
+    - Focal Loss with label smoothing
+    - OneCycleLR scheduler (aggressive but stable)
+    - Gradient clipping for stability
+    - AdamW optimizer with weight decay
+    """
     net.to(device)
-    criterion = torch.nn.BCEWithLogitsLoss().to(device)
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+
+    # Focal Loss with slight label smoothing for robustness
+    criterion = FocalLoss(alpha=0.25, gamma=2.0, label_smoothing=0.05).to(device)
+
+    # AdamW optimizer (better than Adam for FL)
+    optimizer = torch.optim.AdamW(
+        net.parameters(),
+        lr=lr,
+        weight_decay=0.01,
+        betas=(0.9, 0.999)
+    )
+
+    # OneCycleLR: aggressive learning rate schedule
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=lr,
+        epochs=epochs,
+        steps_per_epoch=len(trainloader),
+        pct_start=0.3,  # 30% warmup
+        anneal_strategy='cos',
+        final_div_factor=100
+    )
+
     net.train()
-    running_loss = 0.0
-    for _ in range(epochs):
-        for batch in tqdm(trainloader):
-            x = batch["x"].to(device)
-            y = batch["y"].to(device)
-            optimizer.zero_grad()
+    total_loss = 0.0
+
+    for epoch in range(epochs):
+        epoch_loss = 0.0
+
+        for batch_idx, batch in enumerate(trainloader):
+            x = batch["x"].to(device, non_blocking=True)
+            y = batch["y"].to(device, non_blocking=True)
+
+            optimizer.zero_grad(set_to_none=True)  # Faster than zero_grad()
             outputs = net(x)
             loss = criterion(outputs, y)
             loss.backward()
+
+            # Gradient clipping for stability with high LR
+            torch.nn.utils.clip_grad_norm_(net.parameters(), max_norm=1.0)
+
             optimizer.step()
-            running_loss += loss.item()
-    avg_loss = running_loss / (len(trainloader) * epochs)
-    return avg_loss
+            scheduler.step()
+
+            epoch_loss += loss.item()
+
+        avg_epoch_loss = epoch_loss / len(trainloader)
+        total_loss += avg_epoch_loss
+
+        # Minimal logging (don't slow down training)
+        if epoch == 0 or epoch == epochs - 1:
+            current_lr = scheduler.get_last_lr()[0]
+            print(f"  Epoch {epoch+1}/{epochs}: Loss={avg_epoch_loss:.4f}, LR={current_lr:.6f}")
+
+    return total_loss / epochs
 
 
 def test(net, testloader, device):
