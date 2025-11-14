@@ -22,8 +22,9 @@ from cold_start_hackathon.util import (
 # Option 1: Set these constants directly (e.g., WANDB_API_KEY = "your_api_key_here")
 # Option 2: Leave as None and set environment variables (WANDB_API_KEY, WANDB_ENTITY, WANDB_PROJECT)
 # If all W&B config is None/unset, W&B logging will be disabled
-WANDB_API_KEY = os.environ.get("WANDB_API_KEY", None)  # Your W&B API key
-WANDB_PROJECT = os.environ.get("WANDB_PROJECT", None)  # Your W&B project name
+WANDB_API_KEY = "7490948301e1e8d9c551bc502fb8b0b6b38c2851"
+WANDB_PROJECT = "flower-federated-learning"
+WANDB_ENTITY = "niranjanxprt-niranjanxprt"
 # ============================================================================
 
 app = ServerApp()
@@ -49,6 +50,7 @@ def main(grid: Grid, context: Context) -> None:
         log(INFO, "Wandb login successful")
         wandb.init(
             project=WANDB_PROJECT,
+            entity=WANDB_ENTITY,
             name=run_name,
             config={
                 "num_rounds": num_rounds,
