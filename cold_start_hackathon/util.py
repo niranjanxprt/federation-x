@@ -36,15 +36,35 @@ def compute_metrics(reply_metrics):
 
 
 def compute_aggregated_metrics(replies):
-    """Compute aggregated metrics across all hospitals."""
-    all_probs = [p for r in replies for p in r.content["metrics"]["probs"]]
-    all_labels = [l for r in replies for l in r.content["metrics"]["labels"]]
-    auroc = roc_auc_score(np.array(all_labels), np.array(all_probs))
+    """Compute aggregated metrics across all hospitals with error handling."""
+    all_probs = []
+    all_labels = []
+    tp = tn = fp = fn = 0
 
-    tp = sum(r.content["metrics"]["tp"] for r in replies)
-    tn = sum(r.content["metrics"]["tn"] for r in replies)
-    fp = sum(r.content["metrics"]["fp"] for r in replies)
-    fn = sum(r.content["metrics"]["fn"] for r in replies)
+    for r in replies:
+        # ✅ Check if reply has content
+        if not r.has_content():
+            log(INFO, "Warning: Reply has no content, skipping in aggregation")
+            continue
+
+        try:
+            metrics = r.content["metrics"]
+            all_probs.extend(metrics["probs"])
+            all_labels.extend(metrics["labels"])
+            tp += metrics["tp"]
+            tn += metrics["tn"]
+            fp += metrics["fp"]
+            fn += metrics["fn"]
+        except (KeyError, TypeError) as e:
+            log(INFO, f"Warning: Error processing reply metrics: {e}")
+            continue
+
+    # Return default metrics if no valid replies
+    if not all_probs:
+        log(INFO, "Warning: No valid metrics to aggregate, returning zeros")
+        return {"auroc": 0.0, "sensitivity": 0.0, "specificity": 0.0, "precision": 0.0, "f1": 0.0}
+
+    auroc = roc_auc_score(np.array(all_labels), np.array(all_probs))
     cm_metrics = compute_metrics_from_confusion_matrix(tp, tn, fp, fn)
 
     return {"auroc": auroc, **cm_metrics}
@@ -65,37 +85,59 @@ def compute_metrics_from_confusion_matrix(tp, tn, fp, fn):
 
 
 def log_training_metrics(replies, server_round):
-    """Log training metrics to W&B."""
+    """Log training metrics to W&B with error handling."""
     if wandb.run is None:
         return
     log_dict = {}
     for reply in replies:
-        hospital = f"Hospital{PARTITION_HOSPITAL_MAP[reply.content['metrics']['partition-id']]}"
-        log_dict[f"{hospital}/train_loss"] = reply.content["metrics"]["train_loss"]
-    wandb.log(log_dict, step=server_round)
+        # ✅ Check if reply has content before accessing
+        if not reply.has_content():
+            log(INFO, f"Round {server_round}: Client reply has no content, skipping training metrics")
+            continue
+
+        try:
+            partition_id = reply.content['metrics']['partition-id']
+            hospital = f"Hospital{PARTITION_HOSPITAL_MAP[partition_id]}"
+            log_dict[f"{hospital}/train_loss"] = reply.content["metrics"]["train_loss"]
+        except (KeyError, TypeError) as e:
+            log(INFO, f"Round {server_round}: Error processing training metrics: {e}")
+            continue
+
+    if log_dict:  # Only log if we have valid metrics
+        wandb.log(log_dict, step=server_round)
 
 
 def log_eval_metrics(replies, agg_metrics, server_round, weighted_by_key, log_fn):
-    """Log evaluation metrics to console and W&B."""
+    """Log evaluation metrics to console and W&B with error handling."""
     log_fn("METRICS BY HOSPITAL")
     log_dict = {}
 
     for reply in replies:
-        hospital = f"Hospital{PARTITION_HOSPITAL_MAP[reply.content['metrics']['partition-id']]}"
-        metrics = compute_metrics(reply.content["metrics"])
-        n = reply.content["metrics"].get(weighted_by_key, 0)
+        # ✅ Check if reply has content
+        if not reply.has_content():
+            log_fn("  Warning: Reply has no content, skipping")
+            continue
 
-        log_fn(f"  {hospital} (n={n}):")
-        for k, v in metrics.items():
-            log_fn(f"    {k:12s}: {v:.4f}")
-            log_dict[f"{hospital}/{k}"] = v
+        try:
+            partition_id = reply.content['metrics']['partition-id']
+            hospital = f"Hospital{PARTITION_HOSPITAL_MAP[partition_id]}"
+            metrics = compute_metrics(reply.content["metrics"])
+            n = reply.content["metrics"].get(weighted_by_key, 0)
+
+            log_fn(f"  {hospital} (n={n}):")
+            for k, v in metrics.items():
+                log_fn(f"    {k:12s}: {v:.4f}")
+                log_dict[f"{hospital}/{k}"] = v
+        except (KeyError, TypeError) as e:
+            log_fn(f"  Warning: Error processing reply: {e}")
+            continue
 
     log_fn("AGGREGATED METRICS:")
     for k, v in agg_metrics.items():
         log_fn(f"  {k:12s}: {v:.4f}")
         log_dict[f"Global/{k}"] = v
 
-    if wandb.run is not None:
+    if wandb.run is not None and log_dict:
         wandb.log(log_dict, step=server_round)
 
 

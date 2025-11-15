@@ -137,16 +137,17 @@ def main(grid: Grid, context: Context) -> None:
 
     arrays = ArrayRecord(global_model.state_dict())
 
-    # Enhanced FedProx strategy
+    # Enhanced FedProx strategy with fault tolerance
     strategy = HackathonFedProx(
-        fraction_train=1.0,
-        fraction_evaluate=1.0,
-        min_available_clients=3,
+        fraction_train=0.66,  # Only need 2/3 clients (more fault-tolerant)
+        fraction_evaluate=0.66,  # Only need 2/3 clients
+        min_available_clients=2,  # Can proceed with 2 out of 3 hospitals
         proximal_mu=0.1,  # Optimized for medical imaging
         run_name=run_name
     )
 
     log(INFO, "Strategy: FedProx (μ=0.1) - Optimized for non-IID medical data")
+    log(INFO, "Client Sampling: 2/3 clients per round (fault-tolerant)")
     log(INFO, "Loss: Focal Loss (α=0.25, γ=2.0, label_smoothing=0.05)")
     result = strategy.start(
         grid=grid,
@@ -178,29 +179,46 @@ class HackathonFedProx(FedProx):
         self._round_history = []
 
     def aggregate_train(self, server_round, replies):
-        """Aggregate with enhanced checkpointing."""
-        arrays, metrics = super().aggregate_train(server_round, replies)
+        """Aggregate with enhanced checkpointing and error handling."""
+        # Filter out invalid replies
+        valid_replies = [r for r in replies if r.has_content()]
+        log(INFO, f"Round {server_round}: {len(valid_replies)}/{len(replies)} clients responded successfully")
+
+        if not valid_replies:
+            log(INFO, f"Round {server_round}: No valid client responses, skipping aggregation")
+            return self._arrays if hasattr(self, '_arrays') else None, {}
+
+        arrays, metrics = super().aggregate_train(server_round, valid_replies)
         self._arrays = arrays
 
         # Log training metrics
-        log_training_metrics(replies, server_round)
+        log_training_metrics(valid_replies, server_round)
 
         # Save checkpoint with metrics
         checkpoint_metrics = {
             "train_loss": metrics.get("train_loss", 0.0),
-            "num_clients": len(replies)
+            "num_clients": len(valid_replies),
+            "success_rate": len(valid_replies) / len(replies) if replies else 0
         }
         save_checkpoint(arrays, self._run_name, server_round, checkpoint_metrics)
 
         return arrays, metrics
 
     def aggregate_evaluate(self, server_round, replies):
-        """Aggregate with adaptive strategy."""
-        agg_metrics = compute_aggregated_metrics(replies)
+        """Aggregate with adaptive strategy and error handling."""
+        # Filter out invalid replies
+        valid_replies = [r for r in replies if r.has_content()]
+        log(INFO, f"Round {server_round} Eval: {len(valid_replies)}/{len(replies)} clients evaluated successfully")
+
+        if not valid_replies:
+            log(INFO, f"Round {server_round}: No valid evaluation responses")
+            return {}
+
+        agg_metrics = compute_aggregated_metrics(valid_replies)
 
         # Log evaluation metrics
         log_eval_metrics(
-            replies,
+            valid_replies,
             agg_metrics,
             server_round,
             self.weighted_by_key,
@@ -224,7 +242,18 @@ class HackathonFedProx(FedProx):
         self._round_history.append({
             "round": server_round,
             "auroc": current_auroc,
-            "metrics": agg_metrics
+            "metrics": agg_metrics,
+            "num_clients": len(valid_replies)
         })
+
+        # Enhanced W&B logging with system metrics
+        if wandb.run is not None:
+            system_metrics = {
+                "system/active_clients": len(valid_replies),
+                "system/total_clients": len(replies),
+                "system/client_success_rate": len(valid_replies) / len(replies) if replies else 0,
+                "system/best_auroc": self._best_auroc or 0.0,
+            }
+            wandb.log(system_metrics, step=server_round)
 
         return agg_metrics
