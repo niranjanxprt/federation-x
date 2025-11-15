@@ -10,7 +10,9 @@ build-backend = "hatchling.build"
 [project]
 name = "coldstart"
 version = "1.0.0"
-description = ""
+description = "Federated Learning for Chest X-ray Classification - Privacy-preserving medical image analysis across hospital silos"
+authors = [{name = "Cold Start Hackathon Team", email = "team@federation-x.io"}]
+keywords = ["federated-learning", "privacy", "medical-imaging", "chest-xray", "distributed-training"]
 license = "Apache-2.0"
 requires-python = ">=3.9,<3.14"
 dependencies = [
@@ -42,12 +44,17 @@ publisher = "hackathon"
 serverapp = "cold_start_hackathon.server_app:app"
 clientapp = "cold_start_hackathon.client_app:app"
 
+# =====================================================================
 # Custom config values accessible via `context.run_config`
+# =====================================================================
+# Updated for 20-minute job optimization (Nov 15, 2025)
+# See FL_GUIDE_20MIN_UPDATED.md for detailed strategy
+# =====================================================================
 [tool.flwr.app.config]
-image-size = 128  # Image size (128 or 224)
-num-server-rounds = 100  # Slurm processes are capped to 15min
-local-epochs = 1
-lr = 0.01
+image-size = 128              # Image size: 128x128 (balanced for speed/quality)
+num-server-rounds = 100       # Default rounds (override per job: 9 for 20min)
+local-epochs = 1              # Local epochs per client per round
+lr = 0.01                     # Learning rate (adjust per job: 0.01, 0.005, 0.001)
 
 # Default federation to use when running the app
 [tool.flwr.federations]
