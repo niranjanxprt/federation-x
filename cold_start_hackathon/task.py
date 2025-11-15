@@ -20,15 +20,10 @@ class Net(nn.Module):
         super(Net, self).__init__()
         # Use pre-trained ResNet18 for faster convergence (20-min optimization)
         self.model = models.resnet18(weights='IMAGENET1K_V1')
-        # Adapt to grayscale input
-        self.model.conv1 = nn.Conv2d(
-            in_channels=1,
-            out_channels=64,
-            kernel_size=7,
-            stride=2,
-            padding=3,
-            bias=False,
-        )
+        # NOTE: Pretrained weights expect 3-channel RGB input
+        # The preprocessed data already converts grayscale to 3-channel
+        # So we DON'T replace conv1 - keep it as 3-channel
+
         # Binary classification head (single logit)
         in_features = self.model.fc.in_features
         self.model.fc = nn.Linear(in_features, 1)
