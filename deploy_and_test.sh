@@ -10,7 +10,7 @@ SSH_HOST="team02@129.212.178.168"
 SSH_PORT="32605"
 REMOTE_DIR="~/coldstart"
 VENV_PATH="~/hackathon-venv"
-BRANCH="claude/fl-guide-subagents-plan-01TPDEivdvegb7uMnXnhx9U7"
+BRANCH="claude/test-01TPDEivdvegb7uMnXnhx9U7"
 
 # Colors for output
 RED='\033[0;31m'
@@ -91,13 +91,13 @@ echo "Fetching latest changes..."
 git fetch origin
 
 # Check if branch exists
-if git show-ref --verify --quiet refs/heads/claude/fl-guide-subagents-plan-01TPDEivdvegb7uMnXnhx9U7; then
+if git show-ref --verify --quiet refs/heads/$BRANCH; then
     echo "Branch exists locally, switching to it..."
-    git checkout claude/fl-guide-subagents-plan-01TPDEivdvegb7uMnXnhx9U7
-    git pull origin claude/fl-guide-subagents-plan-01TPDEivdvegb7uMnXnhx9U7
+    git checkout $BRANCH
+    git pull origin $BRANCH
 else
     echo "Branch doesn't exist locally, checking out from remote..."
-    git checkout -b claude/fl-guide-subagents-plan-01TPDEivdvegb7uMnXnhx9U7 origin/claude/fl-guide-subagents-plan-01TPDEivdvegb7uMnXnhx9U7
+    git checkout -b $BRANCH origin/$BRANCH
 fi
 
 echo "✓ Code deployment complete"

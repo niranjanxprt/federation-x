@@ -294,10 +294,10 @@ ssh -p 32605 team02@129.212.178.168
 
 # Once connected:
 cd ~/coldstart
-git pull origin claude/fl-guide-subagents-plan-01TPDEivdvegb7uMnXnhx9U7
+git pull origin claude/test-01TPDEivdvegb7uMnXnhx9U7
 source ~/hackathon-venv/bin/activate
 ./preflight_20min.sh
-./submit-job.sh "flwr run . cluster --stream" --gpu --name "my_job"
+./submit-job.sh "flwr run . cluster-gpu --stream" --gpu --name "my_job"
 ```
 
 ---
@@ -305,7 +305,7 @@ source ~/hackathon-venv/bin/activate
 ## 🔗 Useful Links
 
 - **W&B Dashboard:** https://wandb.ai/niranjanxprt-niranjanxprt/flower-federated-learning
-- **GitHub Branch:** `claude/fl-guide-subagents-plan-01TPDEivdvegb7uMnXnhx9U7`
+- **GitHub Branch:** `claude/test-01TPDEivdvegb7uMnXnhx9U7`
 
 ---
 
