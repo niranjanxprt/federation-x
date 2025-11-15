@@ -3,22 +3,78 @@
 If you can run this, so can we during final evaluation!
 
 Usage:
-  1. Update MODEL_PATH below with your best model filename
-  2. Run in SLURM: ./submit-job.sh "python evaluate.py" --gpu
+  Option 1 (Auto-find best model):
+    ./submit-job.sh "python evaluate.py" --gpu
+
+  Option 2 (Specify model):
+    ./submit-job.sh "python evaluate.py --model /home/team02/models/your_model.pt" --gpu
+
+  Option 3 (Use specific checkpoint):
+    ./submit-job.sh "python evaluate.py --checkpoint job_name" --gpu
 """
 
 import os
+import sys
+import glob
 import numpy as np
 import torch
 from sklearn.metrics import roc_auc_score
 
 from cold_start_hackathon.task import Net, load_data, test
 
-# Model path: update with your best model filename from ~/models/
-# Example: MODEL_PATH = f"/home/team00/models/job_123456_round5_auroc8234.pt"
-MODEL_PATH = f"/home/team02/models/job127_145241_round6_auroc7389.pt"
-# DATASET_DIR = f"/home/team02/xray-data/"
-DATASET_DIR = os.environ["DATASET_DIR"]
+# Auto-detect best model if not specified
+def find_best_model(models_dir="/home/team02/models"):
+    """Find the model with highest AUROC from filename."""
+    if not os.path.exists(models_dir):
+        return None
+
+    # Find all .pt model files
+    model_files = glob.glob(f"{models_dir}/*_auroc*.pt")
+    if not model_files:
+        return None
+
+    # Extract AUROC from filename (format: *_auroc8234.pt = 0.8234)
+    best_model = None
+    best_auroc = 0
+    for model_file in model_files:
+        try:
+            # Extract AUROC value from filename
+            auroc_str = model_file.split("_auroc")[-1].replace(".pt", "")
+            auroc = int(auroc_str) / 10000.0
+            if auroc > best_auroc:
+                best_auroc = auroc
+                best_model = model_file
+        except (ValueError, IndexError):
+            continue
+
+    return best_model
+
+# Parse command line arguments
+MODEL_PATH = None
+if "--model" in sys.argv:
+    idx = sys.argv.index("--model")
+    if idx + 1 < len(sys.argv):
+        MODEL_PATH = sys.argv[idx + 1]
+elif "--checkpoint" in sys.argv:
+    # Use checkpoint from /home/team02/checkpoints/
+    idx = sys.argv.index("--checkpoint")
+    if idx + 1 < len(sys.argv):
+        checkpoint_name = sys.argv[idx + 1]
+        MODEL_PATH = f"/home/team02/checkpoints/{checkpoint_name}_latest.pt"
+
+# Auto-detect if not specified
+if MODEL_PATH is None:
+    print("No model specified, auto-detecting best model...")
+    MODEL_PATH = find_best_model()
+    if MODEL_PATH:
+        print(f"Found best model: {MODEL_PATH}")
+
+# Fallback to old hardcoded path if auto-detection fails
+if MODEL_PATH is None:
+    MODEL_PATH = f"/home/team02/models/job127_145241_round6_auroc7389.pt"
+    print(f"Warning: Using fallback model path: {MODEL_PATH}")
+
+DATASET_DIR = os.environ.get("DATASET_DIR", "/home/team02/xray-data")
 
 
 def evaluate_split(model, dataset_name, split_name, device):
