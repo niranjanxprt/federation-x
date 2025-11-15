@@ -34,6 +34,9 @@ class Net(nn.Module):
         self.model.fc = nn.Linear(in_features, 1)
 
     def forward(self, x):
+        # Convert grayscale to RGB for pre-trained model (if needed)
+        if x.shape[1] == 1:
+            x = x.repeat(1, 3, 1, 1)
         return self.model(x)  # No sigmoid, using BCEWithLogitsLoss
 
 
