@@ -16,7 +16,7 @@ from cold_start_hackathon.task import Net, load_data, test
 
 # Model path: update with your best model filename from ~/models/
 # Example: MODEL_PATH = f"/home/team00/models/job1496_lr1e-3_servround30_localepoch1_round6_auroc7506.pt"
-MODEL_PATH = f"/home/team02/models/job127_145241_round6_auroc7389.pt"
+MODEL_PATH = f"/home/team02/models/job1496_lr1e-3_servround30_localepoch1_round6_auroc7506.pt"
 # DATASET_DIR = f"/home/team02/xray-data/"
 DATASET_DIR = os.environ["DATASET_DIR"]
 
