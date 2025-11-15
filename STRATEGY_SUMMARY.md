@@ -4,8 +4,8 @@
 
 | Category | Main Branch | Test Branch (claude/test-01TPDEivdvegb7uMnXnhhx9U7) |
 |----------|-------------|---------------------------------------------------|
-| **Model Initialization** | ResNet18 from scratch | ResNet18 pretrained (ImageNet) |
-| **Input Channels** | 1 (grayscale) | 3 (grayscale→RGB conversion) |
+| **Model Initialization** | ResNet18 from scratch | ResNet18 from scratch ✅ SAME |
+| **Input Channels** | 1 (grayscale) | 1 (grayscale) ✅ SAME |
 | **Loss Function** | BCEWithLogitsLoss | FocalLoss (α=0.25, γ=2.0) |
 | **Optimizer** | Adam | AdamW (weight_decay=0.01) |
 | **LR Scheduler** | None | OneCycleLR (cosine annealing) |
@@ -43,20 +43,19 @@ class Net(nn.Module):
 # cold_start_hackathon/task.py (test)
 class Net(nn.Module):
     def __init__(self):
-        self.model = models.resnet18(weights='IMAGENET1K_V1')  # ✅ Pretrained!
-        # Keep 3-channel conv1 (don't replace it)
+        self.model = models.resnet18(weights=None)  # ✅ SAME as main
+        # Adapt to 1-channel grayscale input
+        self.model.conv1 = nn.Conv2d(in_channels=1, ...)  # ✅ SAME as main
         self.model.fc = nn.Linear(in_features, 1)
 
     def forward(self, x):
-        if x.shape[1] == 1:  # Convert grayscale → RGB
-            x = x.repeat(1, 3, 1, 1)
-        return self.model(x)
+        return self.model(x)  # ✅ SAME as main
 ```
 
-**Strategy**: Transfer learning from ImageNet
-- **Why**: Faster convergence, better feature extraction
-- **Trade-off**: Slightly more memory (3-channel vs 1-channel)
-- **Expected Impact**: +10-15% initial AUROC boost
+**Strategy**: Same architecture as main branch
+- **Why**: Requirement to keep ResNet18 from scratch, 1-channel input
+- **Difference from main**: Only training optimizations (loss, optimizer, scheduler)
+- **Expected Impact**: No boost from pretrained weights, improvements from training strategy
 
 ---
 
@@ -419,24 +418,24 @@ lr = 0.01  # Fixed LR
 
 | Improvement | Source | Expected Gain | Cumulative |
 |-------------|--------|---------------|------------|
-| **Pretrained weights** | ImageNet initialization | +10-15% initial AUROC | 0.65 → 0.74 |
-| **FocalLoss** | Better class imbalance | +3-5% AUROC | 0.74 → 0.77 |
-| **OneCycleLR** | Faster convergence | 30% faster rounds | -30% time |
-| **Larger batches** | Better GPU utilization | 15% faster epochs | -40% time |
-| **FedProx** | Non-IID handling | +2-3% AUROC | 0.77 → 0.80 |
-| **3-job strategy** | Adaptive LR | +2-3% final AUROC | 0.80 → 0.83 |
+| **FocalLoss** | Better class imbalance | +3-5% AUROC | 0.65 → 0.68 |
+| **OneCycleLR** | Faster convergence | 20-30% faster rounds | -25% time |
+| **Larger batches** | Better GPU utilization | 15% faster epochs | -35% time |
+| **FedProx** | Non-IID handling | +2-3% AUROC | 0.68 → 0.71 |
+| **AdamW** | Better regularization | +1-2% AUROC | 0.71 → 0.73 |
+| **3-job strategy** | Adaptive LR | +2-3% final AUROC | 0.73 → 0.76 |
 | **Fault tolerance** | Continues on failure | +95% job success | 0% → 95% |
 
 ### Overall Expected Results
 
 | Metric | Main Branch | Test Branch | Improvement |
 |--------|-------------|-------------|-------------|
-| **Initial AUROC (Round 1)** | ~0.65 | ~0.74 | +14% |
-| **Round 9 AUROC** | ~0.75 | ~0.82 | +9% |
-| **Final AUROC (Round 27)** | ~0.78 | ~0.85+ | +9% |
-| **Training Time/Round** | ~2.5 min | ~2.2 min | -12% |
+| **Initial AUROC (Round 1)** | ~0.65 | ~0.65 | Same start |
+| **Round 9 AUROC** | ~0.75 | ~0.78 | +4% |
+| **Final AUROC (Round 27)** | ~0.78 | ~0.81 | +4% |
+| **Training Time/Round** | ~2.5 min | ~2.0 min | -20% |
 | **Job Completion Rate** | ~70% | ~95% | +36% |
-| **Hospital B Sensitivity** | 0.52 | 0.65+ | +25% |
+| **Hospital B Sensitivity** | 0.52 | 0.62+ | +19% |
 
 ---
 
