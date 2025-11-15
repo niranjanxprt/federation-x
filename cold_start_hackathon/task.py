@@ -18,20 +18,22 @@ class Net(nn.Module):
 
     def __init__(self):
         super(Net, self).__init__()
-        # Use pre-trained ResNet18 for faster convergence (20-min optimization)
-        self.model = models.resnet18(weights='IMAGENET1K_V1')
-        # NOTE: Pretrained weights expect 3-channel RGB input
-        # The preprocessed data already converts grayscale to 3-channel
-        # So we DON'T replace conv1 - keep it as 3-channel
-
+        # ResNet18 trained from scratch (as per requirements)
+        self.model = models.resnet18(weights=None)
+        # Adapt to 1-channel grayscale input
+        self.model.conv1 = nn.Conv2d(
+            in_channels=1,
+            out_channels=64,
+            kernel_size=7,
+            stride=2,
+            padding=3,
+            bias=False,
+        )
         # Binary classification head (single logit)
         in_features = self.model.fc.in_features
         self.model.fc = nn.Linear(in_features, 1)
 
     def forward(self, x):
-        # Convert grayscale to RGB for pre-trained model (if needed)
-        if x.shape[1] == 1:
-            x = x.repeat(1, 3, 1, 1)
         return self.model(x)  # No sigmoid, using BCEWithLogitsLoss
 
 
