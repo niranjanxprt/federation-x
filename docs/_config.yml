@@ -1,0 +1,76 @@
+# Jekyll configuration for Federation-X GitHub Pages
+
+# Site settings
+title: "Federation-X"
+subtitle: "Privacy-Preserving Federated Learning for Medical AI"
+description: "A federated learning system for chest X-ray classification that keeps patient data private while building better AI models across hospital networks."
+
+url: "https://niranjanxprt.github.io"
+baseurl: "/federation-x"
+
+# Author/Organization
+author: "Federation-X Team"
+organization: "Cold Start Hackathon 2025"
+email: "team@federation-x.io"
+github_username: "niranjanxprt"
+
+# Theme
+theme: "jekyll-theme-cayman"
+remote_theme: "pages-themes/cayman@v0.2.0"
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+# Markdown settings
+markdown: kramdown
+kramdown:
+  auto_ids: true
+  footnote_nr: 1
+  entity_output: as_char
+  toc_levels: 1..6
+  parse_block_html: true
+
+# Collections
+collections:
+  docs:
+    output: true
+    permalink: /:collection/:path/
+
+# Default front matter
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+
+# Social media
+social:
+  name: "Federation-X"
+  links:
+    - "https://github.com/niranjanxprt/federation-x"
+    - "https://twitter.com/federation_x"
+    - "https://github.com/niranjanxprt"
+
+# Analytics
+google_analytics: "UA-XXXXXXXXX-X"  # Add your tracking ID
+
+# Navigation (customize as needed)
+header_pages:
+  - index.md
+  - pitch.md
+  - getting-started.md
+  - architecture.md
+  - faq.md
+
+# Build settings
+show_downloads: true
+exclude:
+  - README.md
+  - LICENSE
+  - .git
+  - .gitignore
+  - Gemfile
+
+# SEO
+locale: "en_US"
