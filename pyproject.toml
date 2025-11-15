@@ -48,6 +48,14 @@ image-size = 128  # Image size (128 or 224)
 num-server-rounds = 100  # Slurm processes are capped to 15min
 local-epochs = 1
 lr = 0.01
+strategy = "fedavg"  # Choose: "fedavg" or "fedopt"
+model_path = ""
+# FedOpt defaults (used when strategy="fedopt")
+fedopt-eta = 0.1       # Server-side LR
+fedopt-eta-l = 0.1     # Client-side LR
+fedopt-beta-1 = 0.0    # Momentum parameter
+fedopt-beta-2 = 0.0    # Second moment parameter
+fedopt-tau = 0.001     # Adaptivity parameter
 
 # Default federation to use when running the app
 [tool.flwr.federations]

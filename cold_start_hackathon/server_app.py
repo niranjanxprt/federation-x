@@ -6,7 +6,7 @@ import wandb
 from flwr.app import ArrayRecord, ConfigRecord, Context
 from flwr.common import log
 from flwr.serverapp import Grid, ServerApp
-from flwr.serverapp.strategy import FedAvg
+from flwr.serverapp.strategy import FedAvg, FedOpt, FedAdam
 
 from cold_start_hackathon.task import Net
 from cold_start_hackathon.util import (
@@ -36,10 +36,12 @@ def main(grid: Grid, context: Context) -> None:
     device = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
     log(INFO, f"Device: {device}")
 
-    num_rounds: int = context.run_config["num-server-rounds"]
-    lr: float = context.run_config["lr"]
-    local_epochs: int = context.run_config["local-epochs"]
-
+    # Pull core config (cast defensively; run_config values may be strings)
+    num_rounds: int = int(context.run_config["num-server-rounds"])
+    lr: float = float(context.run_config["lr"])
+    local_epochs: int = int(context.run_config["local-epochs"])
+    strategy_name: str = str(context.run_config.get("strategy", "fedavg")).lower()
+    model_path: str = str(context.run_config["model-path"])
     # Get run name from environment variable (set by submit-job.sh). Feel free to change this.
     run_name = os.environ.get("JOB_NAME", "your_custom_run_name")
 
@@ -63,9 +65,31 @@ def main(grid: Grid, context: Context) -> None:
         log(INFO, "W&B disabled (credentials not provided). Set WANDB_API_KEY, WANDB_ENTITY, and WANDB_PROJECT to enable.")
 
     global_model = Net()
+    if model_path:
+        global_model.load_state_dict(torch.load(model_path, map_location="cpu", weights_only=True))
     arrays = ArrayRecord(global_model.state_dict())
 
-    strategy = HackathonFedAvg(fraction_train=1, run_name=run_name)
+    # Select strategy
+    if strategy_name == "fedopt":
+        # Optional FedOpt hyperparameters with safe defaults
+        eta = float(context.run_config.get("fedopt-eta", 0.1))
+        eta_l = float(context.run_config.get("fedopt-eta-l", 0.1))
+        beta_1 = float(context.run_config.get("fedopt-beta-1", 0.0))
+        beta_2 = float(context.run_config.get("fedopt-beta-2", 0.0))
+        tau = float(context.run_config.get("fedopt-tau", 0.001))
+
+        strategy = HackathonFedOpt(
+            fraction_train=1,
+            run_name=run_name,
+            eta=eta,
+            eta_l=eta_l,
+            beta_1=beta_1,
+            beta_2=beta_2,
+            tau=tau,
+        )
+    else:
+        strategy = HackathonFedAvg(fraction_train=1, run_name=run_name)
+        
     result = strategy.start(
         grid=grid,
         initial_arrays=arrays,
@@ -81,6 +105,26 @@ def main(grid: Grid, context: Context) -> None:
 
 class HackathonFedAvg(FedAvg):
     """FedAvg strategy that logs metrics and saves best model to W&B."""
+
+    def __init__(self, *args, run_name=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._best_auroc = None
+        self._run_name = run_name or "your_run"
+
+    def aggregate_train(self, server_round, replies):
+        arrays, metrics = super().aggregate_train(server_round, replies)
+        self._arrays = arrays
+        log_training_metrics(replies, server_round)
+        return arrays, metrics
+
+    def aggregate_evaluate(self, server_round, replies):
+        agg_metrics = compute_aggregated_metrics(replies)
+        log_eval_metrics(replies, agg_metrics, server_round, self.weighted_by_key, lambda msg: log(INFO, msg))
+        self._best_auroc = save_best_model(self._arrays, agg_metrics, server_round, self._run_name, self._best_auroc)
+        return agg_metrics
+
+class HackathonFedOpt(FedOpt):
+    """FedOpt strategy that logs metrics and saves best model to W&B."""
 
     def __init__(self, *args, run_name=None, **kwargs):
         super().__init__(*args, **kwargs)
