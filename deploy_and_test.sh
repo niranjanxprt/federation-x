@@ -261,7 +261,7 @@ case $CHOICE in
 
             # Submit job with runtime config
             if [ -f "submit-job.sh" ]; then
-                ./submit-job.sh "flwr run . cluster --stream --run-config \"num-server-rounds=$ROUNDS local-epochs=$EPOCHS lr=$LR\"" --gpu --name "$JOB_NAME"
+                ./submit-job.sh "flwr run . cluster-gpu --stream --run-config \"num-server-rounds=$ROUNDS local-epochs=$EPOCHS lr=$LR\"" --gpu --name "$JOB_NAME"
             else
                 echo "Error: submit-job.sh not found"
                 exit 1

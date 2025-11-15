@@ -11,8 +11,10 @@
 Use the `--run-config` flag to override configuration at job submission time:
 
 ```bash
-flwr run . cluster --stream --run-config "num-server-rounds=9 local-epochs=3 lr=0.01"
+flwr run . cluster-gpu --stream --run-config "num-server-rounds=9 local-epochs=3 lr=0.01"
 ```
+
+**Note**: Use `cluster-gpu` federation (not just `cluster`) for GPU jobs!
 
 ---
 
@@ -163,3 +165,51 @@ A: All implemented! The scripts use the recommended values (9 rounds, 3 epochs, 
 - 📊 **Same results expected** - AUROC 0.7389 → 0.8250 in 60 minutes
 
 **You're all set! Start with `./setup_ssh_keys.sh` then `./deploy_and_test.sh`**
+
+---
+
+## 🏗️ Cluster Information
+
+### Key Constraints
+- **Virtual Environment**: Read-only `hackathon-venv` (pre-configured)
+- **Home Directory**: `~/coldstart` (must be named exactly this!)
+- **Job Submission**: Only via `submit-job.sh` wrapper script
+- **pyproject.toml**: FIXED - cannot be edited
+- **Federation Name**: `cluster-gpu` (for GPU jobs)
+
+### Job Submission Command Structure
+```bash
+./submit-job.sh "<command>" [--name <job-name>] [--gpu]
+```
+
+**Examples:**
+```bash
+# Basic (uses default config from pyproject.toml)
+./submit-job.sh "flwr run . cluster-gpu" --gpu
+
+# With runtime config override (what our scripts use)
+./submit-job.sh "flwr run . cluster-gpu --stream --run-config \"num-server-rounds=9 local-epochs=3 lr=0.01\"" --gpu --name "my_job"
+```
+
+### Monitoring Jobs
+```bash
+# Check job status
+squeue -u team02
+
+# View job history
+sacct -u team02
+
+# Watch logs (real-time)
+tail -f ~/logs/job*.out
+
+# Or use our monitoring script
+./monitor_20min.sh
+```
+
+### Useful Slurm Commands
+| Command | Description |
+|---------|-------------|
+| `squeue -u team02` | Show running/queued jobs |
+| `scancel <job_id>` | Cancel specific job |
+| `scontrol show job <job_id>` | Detailed job info |
+| `sinfo` | Show cluster status |

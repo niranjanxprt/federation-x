@@ -7,10 +7,12 @@ Automated deployment and testing scripts for the federated learning cluster.
 These scripts automate the entire workflow of deploying code to the cluster, running pre-flight checks, submitting jobs, and monitoring training progress.
 
 **Cluster Details:**
-- Host: `team02@129.212.178.168`
+- Host: `team02@129.212.178.168` (or `team02@134.199.193.89`)
 - Port: `32605`
-- Remote directory: `~/coldstart`
-- Virtual environment: `~/hackathon-venv`
+- Remote directory: `~/coldstart` (⚠️ must be exactly this name!)
+- Virtual environment: `~/hackathon-venv` (read-only, pre-configured)
+- Federation: `cluster-gpu` (for GPU jobs)
+- Job submission: Only via `submit-job.sh` wrapper
 
 ---
 

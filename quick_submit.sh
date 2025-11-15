@@ -88,7 +88,7 @@ echo "Submitting job: $JOB_NAME"
 echo "Runtime config: num-server-rounds=$ROUNDS local-epochs=$EPOCHS lr=$LR"
 echo ""
 
-./submit-job.sh "flwr run . cluster --stream --run-config \"num-server-rounds=$ROUNDS local-epochs=$EPOCHS lr=$LR\"" --gpu --name "$JOB_NAME"
+./submit-job.sh "flwr run . cluster-gpu --stream --run-config \"num-server-rounds=$ROUNDS local-epochs=$EPOCHS lr=$LR\"" --gpu --name "$JOB_NAME"
 
 echo ""
 echo "✓ Job submitted successfully!"
