@@ -1,6 +1,20 @@
 # Cold Start Hackathon: Federated Learning for X-ray Classification
 
-This challenge builds on the NIH Chest X-Ray dataset, which contains over 112,000 medical images from 30,000 patients. Participants will explore how federated learning can enable robust diagnostic models that generalize across hospitals, without sharing sensitive patient data.
+[![Python 3.8+](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Flower Framework](https://img.shields.io/badge/Framework-Flower-brightgreen.svg)](https://flower.ai/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/niranjanxprt/federation-x?style=social)](https://github.com/niranjanxprt/federation-x)
+
+This challenge builds on the NIH Chest X-Ray dataset, which contains over **112,000 medical images** from **30,000 patients**. Participants will explore how federated learning can enable robust diagnostic models that generalize across hospitals, without sharing sensitive patient data.
+
+## 🎯 Key Features
+
+- **Privacy-Preserving**: Hospital data stays local; only model updates are shared
+- **Non-IID Data**: Realistic simulation of diverse hospital environments
+- **Multi-Hospital Setup**: Three distinct hospital silos with unique characteristics
+- **Binary Classification**: Detect presence of any pathological finding
+- **Large-Scale Dataset**: 112,000+ medical images across distributed nodes
+- **GPU-Optimized Training**: Cluster-based distributed learning with resource management
 
 ## Background
 
@@ -117,6 +131,50 @@ All metrics automatically logged to W&B: `https://wandb.ai/coldstart2025-teamXX/
 
 Login with your team's service account credentials (provided by organizers).
 
+## 🛠️ Technology Stack
+
+| Component | Technology |
+|-----------|-----------|
+| **Language** | Python 3.8+ |
+| **Federated Learning** | Flower Framework |
+| **Deep Learning** | PyTorch |
+| **Experiment Tracking** | Weights & Biases |
+| **Data Processing** | NumPy, Pandas, OpenCV |
+| **Infrastructure** | HPC Cluster with GPU (NVIDIA) |
+
+## 📁 Repository Structure
+
+```
+federation-x/
+├── cold_start_hackathon/
+│   ├── server_app.py          # Federated server implementation
+│   ├── client_app.py          # Client-side training logic
+│   ├── models/                # Neural network architectures
+│   └── utils/                 # Helper utilities
+├── local_train.py             # Local testing script
+├── evaluate.py                # Evaluation pipeline
+├── submit-job.sh              # Cluster job submission script
+├── requirements.txt           # Python dependencies
+├── setup.py                   # Package setup
+└── README.md                  # This file
+```
+
+## 📚 Additional Resources
+
+- **[Flower Framework Documentation](https://flower.ai/)** - Federated learning framework reference
+- **[AUROC Explanation](https://developers.google.com/machine-learning/crash-course/classification/roc-and-auc)** - Understanding the evaluation metric
+- **[Federated Learning Overview](https://arxiv.org/pdf/1602.05629.pdf)** - Academic foundation paper
+- **[NIH Chest X-Ray Dataset](https://www.nih.gov/news-events/news-releases/nih-clinical-center-provides-one-largest-publicly-available-chest-x-ray-datasets-scientific-community)** - Original dataset information
+
+## 🎓 Learning Objectives
+
+By completing this challenge, you'll master:
+- ✅ Federated Learning fundamentals and architectures
+- ✅ Non-IID data challenges and mitigation strategies
+- ✅ Distributed training at scale
+- ✅ Privacy-preserving machine learning
+- ✅ Medical image analysis and classification
+- ✅ Experiment tracking and reproducibility
 
 ## 📝 Dataset Reference
 
@@ -132,4 +190,21 @@ Login with your team's service account credentials (provided by organizers).
 
 ---
 
+## 🤝 Contributing
+
+We welcome contributions! Please feel free to:
+- Report bugs via GitHub Issues
+- Submit improvements via Pull Requests
+- Share your results and insights
+
+## 📧 Contact & Support
+
+- **Repository**: https://github.com/niranjanxprt/federation-x
+- **Issues**: https://github.com/niranjanxprt/federation-x/issues
+- **Organizers**: Contact the hackathon team for cluster access and credentials
+
+---
+
 **Good luck, and happy hacking!** 🚀
+
+*Last Updated: November 15, 2025*
