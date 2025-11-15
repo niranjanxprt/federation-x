@@ -52,15 +52,17 @@ case $JOB_TYPE in
         ;;
 esac
 
+ROUNDS="9"
+EPOCHS="3"
+
 echo -e "${GREEN}Job Type:${NC} $DESCRIPTION"
-echo -e "${GREEN}Learning Rate:${NC} $LR"
+echo -e "${GREEN}Configuration:${NC}"
+echo "   - Learning Rate:      $LR"
+echo "   - Rounds:             $ROUNDS"
+echo "   - Local Epochs:       $EPOCHS"
 echo -e "${GREEN}Job Name:${NC} $JOB_NAME"
 echo ""
-
-echo -e "${YELLOW}⚠  Make sure pyproject.toml has:${NC}"
-echo "   - num-server-rounds = 9"
-echo "   - local-epochs = 3"
-echo "   - lr = $LR"
+echo -e "${BLUE}Note: Config will be passed via --run-config (pyproject.toml stays unchanged)${NC}"
 echo ""
 read -p "Press Enter to continue or Ctrl+C to cancel..."
 
@@ -81,9 +83,12 @@ if [ ! -f "submit-job.sh" ]; then
     exit 1
 fi
 
-# Submit the job
+# Submit the job with runtime config overrides
 echo "Submitting job: $JOB_NAME"
-./submit-job.sh "flwr run . cluster --stream" --gpu --name "$JOB_NAME"
+echo "Runtime config: num-server-rounds=$ROUNDS local-epochs=$EPOCHS lr=$LR"
+echo ""
+
+./submit-job.sh "flwr run . cluster --stream --run-config \"num-server-rounds=$ROUNDS local-epochs=$EPOCHS lr=$LR\"" --gpu --name "$JOB_NAME"
 
 echo ""
 echo "✓ Job submitted successfully!"

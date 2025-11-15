@@ -161,36 +161,107 @@ else
 fi
 
 # ============================================================================
-# Step 3: Interactive Job Submission
+# Step 3: Job Configuration Selection
 # ============================================================================
 
-print_header "STEP 3: JOB SUBMISSION"
+print_header "STEP 3: SELECT JOB CONFIGURATION"
+
+print_info "Note: pyproject.toml is fixed - config will be overridden at runtime via --run-config"
+echo ""
+
+echo "Select job configuration:"
+echo ""
+echo "  1) Job 1 - Aggressive Learning (LR=0.01, 9 rounds, 3 epochs)"
+echo "  2) Job 2 - Refinement (LR=0.005, 9 rounds, 3 epochs)"
+echo "  3) Job 3 - Fine-tuning (LR=0.001, 9 rounds, 3 epochs)"
+echo "  4) Custom configuration"
+echo "  5) Skip job submission"
+echo ""
+read -p "Enter choice [1-5]: " CONFIG_CHOICE
+
+case $CONFIG_CHOICE in
+    1)
+        LR="0.01"
+        ROUNDS="9"
+        EPOCHS="3"
+        DESCRIPTION="Job 1 (Aggressive Learning)"
+        ;;
+    2)
+        LR="0.005"
+        ROUNDS="9"
+        EPOCHS="3"
+        DESCRIPTION="Job 2 (Refinement)"
+        ;;
+    3)
+        LR="0.001"
+        ROUNDS="9"
+        EPOCHS="3"
+        DESCRIPTION="Job 3 (Fine-tuning)"
+        ;;
+    4)
+        read -p "Enter learning rate (e.g., 0.01): " LR
+        read -p "Enter num-server-rounds (e.g., 9): " ROUNDS
+        read -p "Enter local-epochs (e.g., 3): " EPOCHS
+        DESCRIPTION="Custom Configuration"
+        ;;
+    5)
+        print_info "Skipping job submission"
+        print_header "DEPLOYMENT COMPLETE"
+        print_success "Code deployed to cluster"
+        print_success "Pre-flight checks completed"
+        exit 0
+        ;;
+    *)
+        print_error "Invalid choice"
+        exit 1
+        ;;
+esac
+
+echo ""
+print_info "Selected: $DESCRIPTION"
+echo "  Learning Rate:      $LR"
+echo "  Rounds:             $ROUNDS"
+echo "  Local Epochs:       $EPOCHS"
+echo ""
+
+print_header "STEP 4: JOB SUBMISSION"
 
 echo "What would you like to do?"
 echo ""
-echo "  1) Submit Job 1 (Aggressive Learning, LR=0.01, Rounds 1-9)"
-echo "  2) Submit Job 2 (Refinement, LR=0.005, Rounds 10-18)"
-echo "  3) Submit Job 3 (Fine-tuning, LR=0.001, Rounds 19-27)"
-echo "  4) Submit all jobs in sequence"
-echo "  5) Check job status only"
-echo "  6) Monitor training (real-time)"
-echo "  7) Skip job submission"
+echo "  1) Submit job with this config"
+echo "  2) Check job status only"
+echo "  3) Monitor training (real-time)"
+echo "  4) Cancel"
 echo ""
-read -p "Enter choice [1-7]: " CHOICE
+read -p "Enter choice [1-4]: " CHOICE
 
 case $CHOICE in
     1)
-        print_info "Submitting Job 1..."
-        ssh -p $SSH_PORT $SSH_HOST << 'ENDSSH'
+        print_info "Submitting job..."
+
+        # Get job name
+        read -p "Enter job name (or press Enter for auto-generated): " JOB_NAME
+        if [ -z "$JOB_NAME" ]; then
+            JOB_NAME="fl_job_$(date +%Y%m%d_%H%M%S)"
+        fi
+
+        print_info "Submitting: $JOB_NAME"
+        print_info "Runtime config: num-server-rounds=$ROUNDS local-epochs=$EPOCHS lr=$LR"
+
+        ssh -p $SSH_PORT $SSH_HOST << ENDSSH
             cd ~/coldstart
             source ~/hackathon-venv/bin/activate
 
-            # Update config for Job 1
-            echo "Configuring for Job 1: LR=0.01, 9 rounds..."
+            echo "Submitting job: $JOB_NAME"
+            echo "Runtime config overrides:"
+            echo "  num-server-rounds=$ROUNDS"
+            echo "  local-epochs=$EPOCHS"
+            echo "  lr=$LR"
+            echo ""
 
-            # Submit job
+            # Submit job with runtime config
             if [ -f "submit-job.sh" ]; then
-                ./submit-job.sh "flwr run . cluster --stream" --gpu --name "job1_aggressive_20min_$(date +%Y%m%d_%H%M%S)"
+                ./submit-job.sh "flwr run . cluster --stream --run-config \"num-server-rounds=$ROUNDS local-epochs=$EPOCHS lr=$LR\"" --gpu --name "$JOB_NAME"
             else
                 echo "Error: submit-job.sh not found"
                 exit 1
@@ -199,45 +270,6 @@ ENDSSH
         ;;
 
     2)
-        print_info "Submitting Job 2..."
-        ssh -p $SSH_PORT $SSH_HOST << 'ENDSSH'
-            cd ~/coldstart
-            source ~/hackathon-venv/bin/activate
-
-            echo "Configuring for Job 2: LR=0.005, 9 rounds..."
-
-            if [ -f "submit-job.sh" ]; then
-                ./submit-job.sh "flwr run . cluster --stream" --gpu --name "job2_medium_20min_$(date +%Y%m%d_%H%M%S)"
-            else
-                echo "Error: submit-job.sh not found"
-                exit 1
-            fi
-ENDSSH
-        ;;
-
-    3)
-        print_info "Submitting Job 3..."
-        ssh -p $SSH_PORT $SSH_HOST << 'ENDSSH'
-            cd ~/coldstart
-            source ~/hackathon-venv/bin/activate
-
-            echo "Configuring for Job 3: LR=0.001, 9 rounds..."
-
-            if [ -f "submit-job.sh" ]; then
-                ./submit-job.sh "flwr run . cluster --stream" --gpu --name "job3_finetune_20min_$(date +%Y%m%d_%H%M%S)"
-            else
-                echo "Error: submit-job.sh not found"
-                exit 1
-            fi
-ENDSSH
-        ;;
-
-    4)
-        print_warning "Sequential job submission not automated - requires manual LR changes between jobs"
-        print_info "Please submit jobs manually one at a time, updating pyproject.toml between jobs"
-        ;;
-
-    5)
         print_info "Checking job status..."
         ssh -p $SSH_PORT $SSH_HOST << 'ENDSSH'
             echo "═══════════════════════════════════════════════════════════"
@@ -250,14 +282,14 @@ ENDSSH
 ENDSSH
         ;;
 
-    6)
+    3)
         print_info "Starting real-time monitoring..."
         print_warning "Press Ctrl+C to exit monitoring"
         sleep 2
         ssh -p $SSH_PORT -t $SSH_HOST "cd ~/coldstart && ./monitor_20min.sh"
         ;;
 
-    7)
+    4)
         print_info "Skipping job submission"
         ;;
 
