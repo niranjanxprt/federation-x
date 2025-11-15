@@ -14,13 +14,15 @@ hospital_datasets = {}  # Cache loaded hospital datasets
 
 
 class Net(nn.Module):
-    """Starting point: ResNet18-based model for binary chest X-ray classification."""
+    """ResNet18-based model with ImageNet pretrained weights for binary chest X-ray classification."""
 
     def __init__(self):
         super(Net, self).__init__()
-        # ResNet18 trained from scratch (as per requirements)
-        self.model = models.resnet18(weights=None)
+        # ResNet18 with ImageNet pretrained weights (proven to boost performance)
+        self.model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
         # Adapt to 1-channel grayscale input
+        # Average the pretrained RGB weights to initialize grayscale conv
+        pretrained_conv1_weight = self.model.conv1.weight.data
         self.model.conv1 = nn.Conv2d(
             in_channels=1,
             out_channels=64,
@@ -29,6 +31,8 @@ class Net(nn.Module):
             padding=3,
             bias=False,
         )
+        # Initialize with averaged RGB weights
+        self.model.conv1.weight.data = pretrained_conv1_weight.mean(dim=1, keepdim=True)
         # Binary classification head (single logit)
         in_features = self.model.fc.in_features
         self.model.fc = nn.Linear(in_features, 1)
@@ -59,10 +63,13 @@ def load_data(
     """Load hospital X-ray data.
 
     Args:
-        dataset_name: Dataset name ("HospitalA", "HospitalB", "HospitalC")
-        split_name: Split name ("train", "eval")
+        dataset_name: Dataset name ("HospitalA", "HospitalB", "HospitalC", "Test")
+        split_name: Split name ("train", "eval", "test_A", "test_B", "test_C", "test_D")
         image_size: Image size (128 or 224)
         batch_size: Number of samples per batch
+        
+    Raises:
+        FileNotFoundError: If dataset doesn't exist (e.g., test sets for participants)
     """
     dataset_dir = os.environ["DATASET_DIR"]
 
@@ -73,7 +80,11 @@ def load_data(
     # Load and cache dataset
     global hospital_datasets
     if cache_key not in hospital_datasets:
+        if not os.path.exists(dataset_path):
+            raise FileNotFoundError(f"Dataset not found: {dataset_path}")
         full_dataset = load_from_disk(dataset_path)
+        if split_name not in full_dataset:
+            raise FileNotFoundError(f"Split '{split_name}' not found in {dataset_path}")
         hospital_datasets[cache_key] = full_dataset[split_name]
         print(f"Loaded {dataset_path}/{split_name}")
 
